@@ -1,0 +1,18 @@
+# Binaries
+only4bms-server
+only4bms-server-arm64
+*.exe
+
+# Database
+*.db
+
+# IDE
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Internal documents (design docs, specs)
+documents/
