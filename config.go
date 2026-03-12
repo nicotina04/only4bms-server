@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"os"
+	"strconv"
 )
 
 type Config struct {
@@ -22,6 +23,13 @@ func LoadConfig() *Config {
 	flag.StringVar(&cfg.ServerPassword, "password", envOrDefault("SERVER_PASSWORD", ""), "lobby password (optional)")
 	flag.IntVar(&cfg.DailyResetHour, "daily-reset-hour", 0, "daily course reset hour (UTC)")
 	flag.Parse()
+
+	// Parse DAILY_RESET_HOUR from env if flag was not explicitly set
+	if v := os.Getenv("DAILY_RESET_HOUR"); v != "" {
+		if hour, err := strconv.Atoi(v); err == nil && hour >= 0 && hour < 24 {
+			cfg.DailyResetHour = hour
+		}
+	}
 
 	return cfg
 }

@@ -5,6 +5,8 @@ import (
 	"net/http"
 
 	"github.com/nicotina04/only4bms-server/internal/api"
+	"github.com/nicotina04/only4bms-server/internal/daily"
+	"github.com/nicotina04/only4bms-server/internal/db"
 	"github.com/nicotina04/only4bms-server/internal/lobby"
 	"github.com/nicotina04/only4bms-server/internal/ws"
 )
@@ -14,6 +16,21 @@ func main() {
 
 	log.Printf("Only4BMS Server starting on :%s", cfg.Port)
 	log.Printf("Songs directory: %s", cfg.SongsDir)
+
+	// Database
+	database, err := db.Open(cfg.DBPath)
+	if err != nil {
+		log.Fatalf("failed to open database: %v", err)
+	}
+	defer database.Close()
+
+	if err := db.Migrate(database); err != nil {
+		log.Fatalf("failed to migrate database: %v", err)
+	}
+	log.Printf("Database: %s", cfg.DBPath)
+
+	store := db.NewStore(database)
+	dailyService := daily.NewService(store, cfg.DailyResetHour)
 
 	// Lobby manager (single lobby for MVP)
 	mgr := lobby.NewManager()
@@ -40,6 +57,10 @@ func main() {
 	// Song API
 	songsHandler := api.NewSongsHandler(cfg.SongsDir)
 	songsHandler.RegisterRoutes(mux)
+
+	// Daily course API
+	dailyHandler := api.NewDailyHandler(dailyService)
+	dailyHandler.RegisterRoutes(mux)
 
 	// WebSocket endpoint
 	mux.HandleFunc("GET /ws", hub.HandleWS)
