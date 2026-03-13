@@ -16,7 +16,7 @@ func newTestClient(id int, name string) *ws.Client {
 }
 
 func TestAddPlayer_FirstBecomesHost(t *testing.T) {
-	l := New()
+	l := New(2)
 	c1 := newTestClient(1, "P1")
 
 	if !l.AddPlayer(c1) {
@@ -31,7 +31,7 @@ func TestAddPlayer_FirstBecomesHost(t *testing.T) {
 }
 
 func TestAddPlayer_SecondTransitionsToSelecting(t *testing.T) {
-	l := New()
+	l := New(2)
 	l.AddPlayer(newTestClient(1, "P1"))
 	l.AddPlayer(newTestClient(2, "P2"))
 
@@ -41,7 +41,7 @@ func TestAddPlayer_SecondTransitionsToSelecting(t *testing.T) {
 }
 
 func TestAddPlayer_ThirdRejected(t *testing.T) {
-	l := New()
+	l := New(2)
 	l.AddPlayer(newTestClient(1, "P1"))
 	l.AddPlayer(newTestClient(2, "P2"))
 
@@ -51,7 +51,7 @@ func TestAddPlayer_ThirdRejected(t *testing.T) {
 }
 
 func TestRemovePlayer_HostSuccession(t *testing.T) {
-	l := New()
+	l := New(2)
 	l.AddPlayer(newTestClient(1, "P1"))
 	l.AddPlayer(newTestClient(2, "P2"))
 
@@ -66,7 +66,7 @@ func TestRemovePlayer_HostSuccession(t *testing.T) {
 }
 
 func TestRemovePlayer_BothLeave_Empty(t *testing.T) {
-	l := New()
+	l := New(2)
 	l.AddPlayer(newTestClient(1, "P1"))
 	l.AddPlayer(newTestClient(2, "P2"))
 
@@ -79,7 +79,7 @@ func TestRemovePlayer_BothLeave_Empty(t *testing.T) {
 }
 
 func TestSelectSong_OnlyHost(t *testing.T) {
-	l := New()
+	l := New(2)
 	l.AddPlayer(newTestClient(1, "P1"))
 	l.AddPlayer(newTestClient(2, "P2"))
 
@@ -104,7 +104,7 @@ func TestSelectSong_OnlyHost(t *testing.T) {
 }
 
 func TestSelectSong_WrongState(t *testing.T) {
-	l := New()
+	l := New(2)
 	c1 := newTestClient(1, "P1")
 	l.AddPlayer(c1)
 	// Only 1 player → StateWaiting
@@ -115,7 +115,7 @@ func TestSelectSong_WrongState(t *testing.T) {
 }
 
 func TestReady_AllReadyStartsGame(t *testing.T) {
-	l := New()
+	l := New(2)
 	l.AddPlayer(newTestClient(1, "P1"))
 	l.AddPlayer(newTestClient(2, "P2"))
 	l.SelectSong(1, "song_01", "hard.bms", ws.MatchSettings{})
@@ -134,7 +134,7 @@ func TestReady_AllReadyStartsGame(t *testing.T) {
 }
 
 func TestReady_WrongState(t *testing.T) {
-	l := New()
+	l := New(2)
 	l.AddPlayer(newTestClient(1, "P1"))
 	l.AddPlayer(newTestClient(2, "P2"))
 	// State is Selecting, not Downloading
@@ -145,7 +145,7 @@ func TestReady_WrongState(t *testing.T) {
 }
 
 func TestFinishMatch_ResetsToSelecting(t *testing.T) {
-	l := New()
+	l := New(2)
 	l.AddPlayer(newTestClient(1, "P1"))
 	l.AddPlayer(newTestClient(2, "P2"))
 	l.SelectSong(1, "song_01", "hard.bms", ws.MatchSettings{})
@@ -166,7 +166,7 @@ func TestFinishMatch_ResetsToSelecting(t *testing.T) {
 }
 
 func TestGetLobbyState(t *testing.T) {
-	l := New()
+	l := New(2)
 	l.AddPlayer(newTestClient(1, "P1"))
 	l.AddPlayer(newTestClient(2, "P2"))
 	l.SelectSong(1, "song_01", "hard.bms", ws.MatchSettings{Speed: 3.0})
@@ -189,7 +189,7 @@ func TestGetLobbyState(t *testing.T) {
 }
 
 func TestBroadcast(t *testing.T) {
-	l := New()
+	l := New(2)
 	c1 := newTestClient(1, "P1")
 	c2 := newTestClient(2, "P2")
 	l.AddPlayer(c1)
@@ -220,8 +220,52 @@ func TestBroadcast(t *testing.T) {
 	}
 }
 
+// --- N-player tests ---
+
+func TestAddPlayer_NPlayer_ThirdAccepted(t *testing.T) {
+	l := New(4)
+	l.AddPlayer(newTestClient(1, "P1"))
+	l.AddPlayer(newTestClient(2, "P2"))
+	l.AddPlayer(newTestClient(3, "P3"))
+
+	if len(l.Players) != 3 {
+		t.Errorf("expected 3 players, got %d", len(l.Players))
+	}
+	if l.State != StateSelecting {
+		t.Errorf("expected StateSelecting with 3 players, got %d", l.State)
+	}
+}
+
+func TestAddPlayer_NPlayer_RejectsOverMax(t *testing.T) {
+	l := New(3)
+	l.AddPlayer(newTestClient(1, "P1"))
+	l.AddPlayer(newTestClient(2, "P2"))
+	l.AddPlayer(newTestClient(3, "P3"))
+
+	if l.AddPlayer(newTestClient(4, "P4")) {
+		t.Fatal("expected 4th player to be rejected in max-3 lobby")
+	}
+}
+
+func TestReady_NPlayer_AllThreeReady(t *testing.T) {
+	l := New(4)
+	l.AddPlayer(newTestClient(1, "P1"))
+	l.AddPlayer(newTestClient(2, "P2"))
+	l.AddPlayer(newTestClient(3, "P3"))
+	l.SelectSong(1, "song_01", "hard.bms", ws.MatchSettings{})
+
+	l.SetReady(1)
+	l.SetReady(2)
+	if !l.SetReady(3) {
+		t.Fatal("expected all-ready to return true with 3 players")
+	}
+	if l.State != StatePlaying {
+		t.Errorf("expected StatePlaying, got %d", l.State)
+	}
+}
+
 func TestBroadcastExcept(t *testing.T) {
-	l := New()
+	l := New(2)
 	c1 := newTestClient(1, "P1")
 	c2 := newTestClient(2, "P2")
 	l.AddPlayer(c1)

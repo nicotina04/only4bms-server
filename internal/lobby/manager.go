@@ -12,10 +12,10 @@ type Manager struct {
 	lobby *Lobby
 }
 
-// NewManager creates a Manager with a single lobby (MVP).
-func NewManager() *Manager {
+// NewManager creates a Manager with a single lobby.
+func NewManager(maxPlayers int) *Manager {
 	return &Manager{
-		lobby: New(),
+		lobby: New(maxPlayers),
 	}
 }
 
@@ -106,6 +106,7 @@ func (m *Manager) handleSyncScore(c *ws.Client, raw json.RawMessage) {
 	}
 
 	m.lobby.BroadcastExcept(c.ID, "opponent_score", ws.OpponentScoreData{
+		PlayerID:  c.ID,
 		Combo:     data.Combo,
 		Judgments: data.Judgments,
 	})

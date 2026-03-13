@@ -32,8 +32,8 @@ func main() {
 	store := db.NewStore(database)
 	dailyService := daily.NewService(store, cfg.DailyResetHour)
 
-	// Lobby manager (single lobby for MVP)
-	mgr := lobby.NewManager()
+	// Lobby manager
+	mgr := lobby.NewManager(cfg.MaxPlayers)
 
 	// WebSocket hub
 	hub := ws.NewHub(cfg.ServerPassword, mgr.WSHandler())

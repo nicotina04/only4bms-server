@@ -16,15 +16,16 @@ const (
 	StatePlaying                  // match in progress
 )
 
-const MaxPlayers = 2
+const MinPlayers = 2
 
-// Lobby holds the state for a single 1v1 match room.
+// Lobby holds the state for a match room.
 type Lobby struct {
 	mu sync.RWMutex
 
-	Players map[int]*ws.Client // player_id → client
-	HostID  int
-	State   State
+	MaxPlayers int
+	Players    map[int]*ws.Client // player_id → client
+	HostID     int
+	State      State
 
 	SelectedSongID  string
 	SelectedBMSFile string
@@ -32,9 +33,10 @@ type Lobby struct {
 	ReadyPlayers    map[int]bool
 }
 
-// New creates a new empty lobby.
-func New() *Lobby {
+// New creates a new empty lobby with the given max player capacity.
+func New(maxPlayers int) *Lobby {
 	return &Lobby{
+		MaxPlayers:   maxPlayers,
 		Players:      make(map[int]*ws.Client),
 		ReadyPlayers: make(map[int]bool),
 		State:        StateWaiting,
@@ -46,7 +48,7 @@ func (l *Lobby) AddPlayer(c *ws.Client) bool {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
-	if len(l.Players) >= MaxPlayers {
+	if len(l.Players) >= l.MaxPlayers {
 		return false
 	}
 
@@ -57,7 +59,8 @@ func (l *Lobby) AddPlayer(c *ws.Client) bool {
 		l.HostID = c.ID
 	}
 
-	if len(l.Players) == MaxPlayers {
+	// Allow song selection once minimum players have joined
+	if len(l.Players) >= MinPlayers && l.State == StateWaiting {
 		l.State = StateSelecting
 	}
 
@@ -117,7 +120,7 @@ func (l *Lobby) SetReady(playerID int) bool {
 
 	l.ReadyPlayers[playerID] = true
 
-	if len(l.ReadyPlayers) == len(l.Players) && len(l.Players) == MaxPlayers {
+	if len(l.ReadyPlayers) == len(l.Players) && len(l.Players) >= MinPlayers {
 		l.State = StatePlaying
 		return true
 	}
@@ -138,7 +141,7 @@ func (l *Lobby) resetState() {
 	l.MatchSettings = ws.MatchSettings{}
 	l.ReadyPlayers = make(map[int]bool)
 
-	if len(l.Players) >= MaxPlayers {
+	if len(l.Players) >= MinPlayers {
 		l.State = StateSelecting
 	} else {
 		l.State = StateWaiting

@@ -65,6 +65,7 @@ type StartGameData struct {
 }
 
 type OpponentScoreData struct {
+	PlayerID  int            `json:"player_id"`
 	Combo     int            `json:"combo"`
 	Judgments map[string]int `json:"judgments"`
 }
