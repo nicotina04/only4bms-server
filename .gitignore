@@ -5,6 +5,9 @@ only4bms-server-arm64
 
 # Database
 *.db
+*.db-shm
+*.db-wal
+*.db-journal
 
 # IDE
 .idea/
